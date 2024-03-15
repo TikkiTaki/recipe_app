@@ -2,6 +2,7 @@ from tkinter import *
 from tkmacosx import Button
 from tkinter import messagebox
 import os
+import sqlite3
 import random
 import requests
 import json
@@ -52,6 +53,7 @@ BUTTON_STYLE3 = {
     "height": 100,
 }
 
+db_path = '/Users/tvrtkomaric/PycharmProjects/recipes.db'
 
 class Gui():
     def __init__(self):
@@ -71,13 +73,44 @@ class Gui():
         self.find_recipe = Button(self.root, text="Find Recipe",command=self.find_button)
         self.find_recipe.configure(BUTTON_STYLE)
         self.find_recipe.place(x=10,y=10)
-        self.create_recipe = Button(self.root, text="Create Recipe",command=self.create_button)
+        self.create_recipe = Button(self.root, text="Create Recipe",command=self.recipe_name)
         self.create_recipe.configure(BUTTON_STYLE)
         self.create_recipe.place(x=440,y=10)
 
-    def create_button(self):
+    def recipe_name(self):
         self.find_recipe.place_forget()
         self.create_recipe.place_forget()
+        self.user_recipe_name = Entry(self.root, width=24, fg="#B67352", bg=BACKGROUND_COLOR, font=("Georgia", 45, "bold"), justify="center")
+        self.user_recipe_name.insert(0, "Insert Recipe Name")
+        self.user_recipe_name.bind("<FocusOut>", self.on_focus_out_recipe_name)
+        self.user_recipe_name.bind("<FocusIn>", self.on_entry_click_recipe_name)
+        self.user_recipe_name.place(x=10, y=10)
+
+        self.user_add_ingredients = Button(self.root, text="Add Ingredients", command=self.create_button)
+        self.user_add_ingredients.configure(BUTTON_STYLE2)
+        self.user_add_ingredients.place(x=150, y=290)
+
+        self.back_button7 = Button(self.root, text="Go Back", command=self.back_to_menu7)
+        self.back_button7.configure(BUTTON_STYLE2)
+        self.back_button7.place(x=150, y=390)
+
+    def back_to_menu7(self):
+        self.user_recipe_name.place_forget()
+        self.user_add_ingredients.place_forget()
+        self.back_button7.place_forget()
+        self.find_recipe = Button(self.root, text="Find Recipe", command=self.find_button)
+        self.find_recipe.configure(BUTTON_STYLE)
+        self.find_recipe.place(x=10, y=10)
+        self.create_recipe = Button(self.root, text="Create Recipe", command=self.recipe_name)
+        self.create_recipe.configure(BUTTON_STYLE)
+        self.create_recipe.place(x=440, y=10)
+
+
+    def create_button(self): ###recipe name prvo pa onda create ingredients button
+        self.user_input_recipe_name = self.user_recipe_name.get()
+        self.user_recipe_name.place_forget()
+        self.user_add_ingredients.place_forget()
+        self.back_button7.place_forget()
         self.textbox = Entry(self.root, width=10, fg="#B67352", bg=BACKGROUND_COLOR, font=("Georgia", 45, "bold"), justify="center")
         self.textbox.insert(0, "Ingredient 1")
         self.textbox.bind("<FocusOut>", self.on_focus_out)
@@ -177,6 +210,16 @@ class Gui():
         print(self.INGREDIENT1,self.INGREDIENT2,self.INGREDIENT3,self.INGREDIENT4)
         print(self.AMOUNT1,self.AMOUNT2,self.AMOUNT3,self.AMOUNT4)
 
+        self.ingredients = []
+        self.amounts = []
+
+        self.ingredients.extend((self.INGREDIENT1,self.INGREDIENT2,self.INGREDIENT3,self.INGREDIENT4))
+
+        self.amounts.extend((self.AMOUNT1,self.AMOUNT2,self.AMOUNT2,self.AMOUNT4))
+
+        print(self.ingredients)
+        print(self.amounts)
+
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
 
@@ -207,7 +250,7 @@ class Gui():
         self.find_recipe = Button(self.root, text="Find Recipe", command=self.find_button)
         self.find_recipe.configure(BUTTON_STYLE)
         self.find_recipe.place(x=10, y=10)
-        self.create_recipe = Button(self.root, text="Create Recipe", command=self.create_button)
+        self.create_recipe = Button(self.root, text="Create Recipe", command=self.recipe_name)
         self.create_recipe.configure(BUTTON_STYLE)
         self.create_recipe.place(x=440, y=10)
 
@@ -215,11 +258,47 @@ class Gui():
         print(self.AMOUNT1, self.AMOUNT2, self.AMOUNT3, self.AMOUNT4)
         print(self.user_description)
 
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+
+        c.execute('''CREATE TABLE IF NOT EXISTS recipes
+                     (recipe_name TEXT, ingredient TEXT, amount REAL, description TEXT)''')
 
 
+        def insert_recipe(recipe_name, ingredients, amounts, description):
+            for ingredient, amount in zip(ingredients, amounts):
+                c.execute("INSERT INTO recipes (recipe_name, ingredient, amount, description) VALUES (?, ?, ?, ?)",
+                          (recipe_name, ingredient, amount, description))
+            conn.commit()
+            print("Recipe inserted successfully!")
 
 
-        ### take ingredients, amounts and description and post it online
+        def display_recipe(recipe_name):
+            c.execute("SELECT ingredient, amount FROM recipes WHERE recipe_name = ?", (recipe_name,))
+            ingredients = c.fetchall()
+            if not ingredients:
+                print(f"No recipe found with the name '{recipe_name}'.")
+            else:
+                print(f"Recipe: {recipe_name}")
+                print("Ingredients:")
+                for ingredient, amount in ingredients:
+                    print(f"- {ingredient}: {amount}")
+                c.execute("SELECT description FROM recipes WHERE recipe_name = ?", (recipe_name,))
+                description = c.fetchone()
+                if description:
+                    print("\nDescription:")
+                    print(description[0])
+                print()
+
+
+        # Insert recipe into the database
+        insert_recipe(self.user_input_recipe_name, self.ingredients, self.amounts, self.user_description)
+
+        # Display the specific recipe from the database
+        display_recipe(self.user_input_recipe_name)
+
+        # Close connection
+        conn.close()
 
     def back_to_menu6(self):
         self.back_button6.place_forget()
@@ -282,7 +361,7 @@ class Gui():
         self.add_description.place(x=150, y=290)
 
     def back_to_menu5(self):
-        self.back_button5.destroy()
+        self.back_button5.place_forget()
         self.textbox.place_forget()
         self.textbox2.place_forget()
         self.textbox3.place_forget()
@@ -293,12 +372,19 @@ class Gui():
         self.textbox4_amount.place_forget()
         self.add_description.place_forget()
 
-        self.find_recipe = Button(self.root, text="Find Recipe", command=self.find_button)
-        self.find_recipe.configure(BUTTON_STYLE)
-        self.find_recipe.place(x=10, y=10)
-        self.create_recipe = Button(self.root, text="Create Recipe", command=self.create_button)
-        self.create_recipe.configure(BUTTON_STYLE)
-        self.create_recipe.place(x=440, y=10)
+        self.user_recipe_name = Entry(self.root, width=24, fg="#B67352", bg=BACKGROUND_COLOR, font=("Georgia", 45, "bold"), justify="center")
+        self.user_recipe_name.insert(0, "Insert Recipe Name")
+        self.user_recipe_name.bind("<FocusOut>", self.on_focus_out_recipe_name)
+        self.user_recipe_name.bind("<FocusIn>", self.on_entry_click_recipe_name)
+        self.user_recipe_name.place(x=10, y=10)
+
+        self.user_add_ingredients = Button(self.root, text="Add Ingredients", command=self.create_button)
+        self.user_add_ingredients.configure(BUTTON_STYLE2)
+        self.user_add_ingredients.place(x=150, y=290)
+
+        self.back_button7 = Button(self.root, text="Go Back", command=self.back_to_menu7)
+        self.back_button7.configure(BUTTON_STYLE2)
+        self.back_button7.place(x=150, y=390)
 
     def find_button(self):
         self.find_recipe.destroy()
@@ -349,6 +435,15 @@ class Gui():
         self.activate_search.configure(BUTTON_STYLE2)
         self.activate_search.place(x=150, y=290)
 
+    def on_entry_click_recipe_name(self, event):
+        if self.user_recipe_name.get() == "Insert Recipe Name":
+            self.user_recipe_name.delete(0, "end")
+            self.user_recipe_name.config(fg="#B67352", justify="center")
+
+    def on_focus_out_recipe_name(self, event):
+        if self.user_recipe_name.get() == "":
+            self.user_recipe_name.insert(0, "Insert Recipe Name")
+            self.user_recipe_name.configure(fg="#B67352", justify="center")
     def on_entry_click(self, event):
         if self.textbox.get() == "Ingredient 1":
             self.textbox.delete(0, "end")
@@ -430,13 +525,13 @@ class Gui():
             self.textbox4_amount.configure(fg="#B67352", justify="center")
 
     def back_to_menu(self):
-        self.search_ingredient.destroy()
-        self.back_button.destroy()
+        self.search_ingredient.place_forget()
+        self.back_button.place_forget()
 
         self.find_recipe = Button(self.root, text="Find Recipe", command=self.find_button)
         self.find_recipe.configure(BUTTON_STYLE)
         self.find_recipe.place(x=10, y=10)
-        self.create_recipe = Button(self.root, text="Create Recipe", command=self.create_button)
+        self.create_recipe = Button(self.root, text="Create Recipe", command=self.recipe_name)
         self.create_recipe.configure(BUTTON_STYLE)
         self.create_recipe.place(x=440, y=10)
 
@@ -611,4 +706,4 @@ class Gui():
         self.back_button4.place_forget()
 
 
-### when add recipe is clicked it should take the ingredients, the amounts and the description and post it online, maybe send a messagebox saying recipe added
+
