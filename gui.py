@@ -53,7 +53,7 @@ BUTTON_STYLE3 = {
     "height": 100,
 }
 
-db_path = '/Users/tvrtkomaric/PycharmProjects/recipes.db'
+db_path = '../recipes.db'
 
 class Gui():
     def __init__(self):
